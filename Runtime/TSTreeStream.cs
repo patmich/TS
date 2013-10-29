@@ -9,7 +9,7 @@ using System.Text;
 namespace LLT
 {
 	[Serializable]
-	public abstract class TSTreeStream<T> : IDisposable, ITSTreeStream
+	public abstract class TSTreeStream<T> : IDisposable, ITSTreeStream, ITreeStreamQuery<T>
 		where T : class, ITSObject, new()
 	{
 		public const int Alignment = 4;
@@ -95,27 +95,57 @@ namespace LLT
 			
 			CoreAssert.Fatal(Objects.Count(x=>x.Position == position) == 0);
 			Objects.Add(obj);
+		
+			var tag = CreateTag(position);
+			tag.ObjectIndex = (ushort)(Objects.Count - 1);
+			
 			return obj;
+		}
+		
+		public T FindObject(params string[] path)
+		{
+			var tag = FindTag(path);
+			if(tag == null || tag.ObjectIndex == ushort.MaxValue)
+			{
+				return null;
+			}
+
+			CoreAssert.Fatal(0 <= tag.ObjectIndex && tag.ObjectIndex < Objects.Count);
+			return Objects[tag.ObjectIndex];
 		}
 		
 		public E FindEntry<E>(params string[] path)
 			where E : TSTreeStreamEntry, new()
 		{
+			var tag = FindTag(path);
+			if(tag == null)
+			{
+				return null;
+			}
+			
+			var entry = new E();
+			
+			entry.Init(this);
+			entry.Position = tag.EntryPosition;
+			
+			return entry;
+		}
+		
+		public TSTreeStreamTag FindTag(params string[] path)
+		{
 			if(path.Length == 0)
 			{
-				var entry = new E();
-				entry.Position = RootTag.EntryPosition;
-				return entry;
+				return RootTag;
 			}
 			
 			var parentTag = new TSTreeStreamTag(this);
 			var tag = new TSTreeStreamTag(this);
 			
 			parentTag.Position = RootTag.Position;
-			tag.Position = RootTag.FirstChildPosition;
+			tag.Position = parentTag.FirstChildPosition;
 			
 			var index = 0;
-			while(tag.SiblingPosition< parentTag.SiblingPosition)
+			while(tag.Position < parentTag.SiblingPosition)
 			{
 				if(tag.NameIndex != ushort.MaxValue && path[index] == _lookup[tag.NameIndex])
 				{
@@ -126,9 +156,7 @@ namespace LLT
 					}
 					else
 					{
-						var entry = new E();
-						entry.Position = tag.EntryPosition;
-						return entry;
+						return tag;
 					}
 				}
 				else
