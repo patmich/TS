@@ -1,6 +1,6 @@
 namespace LLT
 {
-	public sealed partial class TSTreeStreamTag : TSTreeStreamEntry, ITSFactoryInstance
+	public sealed partial class TSTreeStreamTag : LLT.TSTreeStreamEntry, LLT.ITSFactoryInstance
 	{
 		public const int NameIndex_Offset = 0;
 		public const int EntrySizeOf_Offset = 2;
@@ -75,18 +75,6 @@ namespace LLT
 			set
 			{
 				_tree.Write(_position + 12, value);
-			}
-		}
-
-		public override int Position
-		{
-			get
-			{
-				return _position;
-			}
-			set
-			{
-				_position = value;
 			}
 		}
 

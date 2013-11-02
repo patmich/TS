@@ -10,11 +10,15 @@ namespace LLT
 	[TSLayout(typeof(byte), "TypeIndex", 5)]
 	public sealed partial class TSTreeStreamTag : TSTreeStreamEntry
 	{
+		private int _entryPosition;
+		private int _firstChildPosition;
+		private int _siblingPosition;
+		
 		public int EntryPosition 
 		{
 			get
 			{
-				return Position + TSTreeStreamTag.TSTreeStreamTagSizeOf;
+				return _entryPosition;
 			}
 		}
 		
@@ -22,7 +26,7 @@ namespace LLT
 		{
 			get
 			{
-				return Position + TSTreeStreamTag.TSTreeStreamTagSizeOf + EntrySizeOf;
+				return _firstChildPosition;
 			}
 		}
 		
@@ -30,10 +34,24 @@ namespace LLT
 		{
 			get
 			{
-				return Position + TSTreeStreamTag.TSTreeStreamTagSizeOf + EntrySizeOf + SubTreeSizeOf;
+				return _siblingPosition;
 			}
 		}
 		
+		public override int Position 
+		{
+			get 
+			{
+				return _position;
+			}
+			set 
+			{
+				_position = value;
+				_entryPosition = _position + TSTreeStreamTag.TSTreeStreamTagSizeOf;
+				_firstChildPosition = _entryPosition + EntrySizeOf;
+				_siblingPosition = _firstChildPosition + SubTreeSizeOf;
+			}
+		}
 		internal TSTreeStreamTag(ITSTreeStream tree, int position, ITSFactoryInstance current, List<TSTreeStreamTag> childs)
 	    {
 	       	_tree = tree;
@@ -54,8 +72,8 @@ namespace LLT
 	            subTreeSizeOf += (uint)(childs[i].EntrySizeOf + TSTreeStreamTag.TSTreeStreamTagSizeOf + childs[i].SubTreeSizeOf);
 			}
 			
-			CoreAssert.Fatal(subTreeSizeOf < ushort.MaxValue);
-			SubTreeSizeOf = (ushort)subTreeSizeOf;
+			CoreAssert.Fatal(subTreeSizeOf < int.MaxValue);
+			SubTreeSizeOf = (int)subTreeSizeOf;
 	    }
 		
 		public TSTreeStreamTag(ITSTreeStream tree, int position)

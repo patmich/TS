@@ -3,7 +3,7 @@ using System.Collections;
 
 namespace LLT
 {
-	public sealed class TSTreeStreamDFSEnumerator<T> : IEnumerator<TSTreeStreamTag>
+	public sealed class TSTreeStreamDFSEnumerator<T>
 		where T : TSTreeStreamEntry, new()
 	{
 		private sealed class TagList : List<TSTreeStreamTag>
@@ -55,14 +55,6 @@ namespace LLT
 			}
     	}
 
-
-	    object IEnumerator.Current
-	    {
-	        get 
-			{
-				return Current; 
-			}
-	    }
 		
 		public TSTreeStreamDFSEnumerator(ITSTreeStream tree)
 		{
@@ -78,9 +70,31 @@ namespace LLT
 			Parent.Position = _tagList[0].EntryPosition;
 		}
 		
-		public bool MoveNext ()
+		public bool MoveNext (bool skipSubTree)
 		{
-			if(_tagList[_index].SubTreeSizeOf == 0)
+			if(skipSubTree)
+			{
+				var poped = false;
+				while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
+				{
+					_index--;
+					poped = true;
+				}
+				if(_index == 0)
+				{
+					return false;
+				}
+				else
+				{
+					_tagList[_index].Position = _tagList[_index].SiblingPosition;
+					
+					if(poped)
+					{
+						Parent.Position = _tagList[_index - 1].EntryPosition;
+					}
+				}
+			}
+			else if(_tagList[_index].SubTreeSizeOf == 0)
 			{
 				if(_tagList[_index].SiblingPosition < _tagList[_index-1].SiblingPosition)
 				{

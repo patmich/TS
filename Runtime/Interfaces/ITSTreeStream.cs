@@ -5,7 +5,9 @@ namespace LLT
 	public interface ITSTreeStream
 	{
 		TSTreeStreamTag RootTag { get; }
-		
+		bool RebuildPath(TSTreeStreamTag tag, out string path);
+        string GetName(TSTreeStreamTag tag);
+        
 		int ReadInt32(int position);
 		float ReadSingle(int position);
 		byte ReadByte(int position);

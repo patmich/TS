@@ -18,9 +18,21 @@ namespace LLT
 
 		private byte[] _buffer;		
 		private readonly List<string> _lookup = new List<string>();
-		
-		public TSTreeStreamTag RootTag { get; private set; }
+		private TSTreeStreamTag _rootTag;
 		private GCHandle? _handle;
+		
+		public TSTreeStreamTag RootTag
+		{
+			get
+			{
+				if(_rootTag == null)
+				{
+					_rootTag = new TSTreeStreamTag(this);
+				}
+				
+				return _rootTag;
+			}
+		}
 		
 		public int Length 
 		{
@@ -73,7 +85,7 @@ namespace LLT
 					stream.Position += align;
 				}
 				
-				RootTag = CreateTag((int)stream.Position);
+				_rootTag = CreateTag((int)stream.Position);
 			}
 			
 			for(var i = 0; i < Objects.Count; i++)
@@ -131,6 +143,12 @@ namespace LLT
 			return entry;
 		}
 		
+		public string GetName(TSTreeStreamTag tag)
+		{
+			CoreAssert.Fatal(0 <= tag.NameIndex && tag.NameIndex < _lookup.Count);
+			return _lookup[tag.NameIndex];
+		}
+		
 		public TSTreeStreamTag FindTag(params string[] path)
 		{
 			if(path.Length == 0)
@@ -168,6 +186,64 @@ namespace LLT
 			return null;
 		}
 		
+        public bool RebuildPath(TSTreeStreamTag tag, out string path)
+        {
+            if(tag == null)
+            {
+                path = string.Empty;
+                return false;
+            }
+            
+            var entryPosition = tag.EntryPosition;
+            var parentTag = new TSTreeStreamTag(this);
+            tag = new TSTreeStreamTag(this);
+             
+            parentTag.Position = RootTag.Position;
+            tag.Position = parentTag.FirstChildPosition;
+            
+            CoreAssert.Fatal(parentTag.NameIndex != ushort.MaxValue);
+            path = GetName(parentTag);
+            
+            if(parentTag.EntryPosition == entryPosition)
+            {
+                return true;
+            }
+            
+            while(tag.Position < entryPosition)
+            {
+                if(tag.EntryPosition == entryPosition)
+                {
+                    if(tag.NameIndex != ushort.MaxValue)
+                    {
+                        path = path + "/" + GetName(tag);
+                        return true;   
+                    }
+                    return false;
+                }
+                else if(tag.Position <= entryPosition && entryPosition <= tag.FirstChildPosition)
+                {
+                    if(tag.NameIndex != ushort.MaxValue)
+                    {
+                        path = path + "/" + GetName(tag);
+                    }
+                    
+                    CoreAssert.Fatal(tag.SubTreeSizeOf > 0);
+                    parentTag.Position = tag.Position;
+                    tag.Position = tag.FirstChildPosition;
+                }
+                else
+                {
+                    if(tag.SiblingPosition == parentTag.SiblingPosition)
+                    {
+                        return false;
+                    }
+                    tag.Position = tag.SiblingPosition;
+                }
+            }
+            
+            return false;
+        }
+        
 		public IntPtr Pin()
 		{
 			CoreAssert.Fatal(!_handle.HasValue);
@@ -393,7 +469,7 @@ namespace LLT
 					stream.Position = 0;
 					stream.Read(_buffer, 0, _buffer.Length);
 					
-					RootTag = CreateTag((int)treePosition);
+					_rootTag = CreateTag((int)treePosition);
 					
 					for(var i = 0; i < positions.Count; i++)
 					{

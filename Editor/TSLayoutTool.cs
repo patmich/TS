@@ -4,6 +4,7 @@ using System.Linq;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace LLT
 {
@@ -16,6 +17,20 @@ namespace LLT
 			
 			public EntryProperty(int offset, Type type)
 			{
+				Offset = offset;	
+				Type = type;
+			}
+		}
+		
+		private class OffsetProperty
+		{
+			public string Name { get; private set; }
+			public int Offset { get; private set; }
+			public Type Type { get; private set; }
+			
+			public OffsetProperty(string name, int offset, Type type)
+			{
+				Name = name;
 				Offset = offset;	
 				Type = type;
 			}
@@ -44,9 +59,13 @@ namespace LLT
 				
 				var layoutAttributes = type.GetCustomAttributes(typeof(TSLayoutAttribute), false).Cast<TSLayoutAttribute>().OrderBy(x=>x.Order);
 				
-				foreach(KeyValuePair<string, EntryProperty> kvp in OffsetBuilder(0, type))
+				foreach(var val in OffsetBuilder(offset, type))
 				{
-					textWriter.WriteLine(string.Format("\t\tpublic const int {0}_Offset = {1};", kvp.Key, kvp.Value.Offset));
+					var offsetProperty = val as OffsetProperty;
+					if(offsetProperty != null)
+					{
+						textWriter.WriteLine(string.Format("\t\tpublic const int {0}_Offset = {1};", offsetProperty.Name, offsetProperty.Offset));
+					}
 				}
 				
 				textWriter.WriteLine(string.Format("\t\tpublic const int {0}SizeOf = {1};", type.Name, SizeOf(type, true)));
@@ -116,35 +135,37 @@ namespace LLT
 					}
 				}
 				
-				textWriter.WriteLine();
-					
-				textWriter.WriteLine("\t\tpublic override int Position");
-				textWriter.WriteLine("\t\t{");
-				textWriter.WriteLine("\t\t\tget");
-				textWriter.WriteLine("\t\t\t{");
-				textWriter.WriteLine("\t\t\t\treturn _position;");
-				textWriter.WriteLine("\t\t\t}");
-				textWriter.WriteLine("\t\t\tset");
-				textWriter.WriteLine("\t\t\t{");
-				textWriter.WriteLine("\t\t\t\t_position = value;");
-				
-				nextOffset = 0;
-				offset = 0;
-				
-				foreach(TSLayoutAttribute layoutAttribute in layoutAttributes)
+				if(layoutAttributes.Count(x=>x.Type.IsSubclassOf(typeof(TSTreeStreamEntry))) > 0)
 				{
-					var size = SizeOf(layoutAttribute.Type, false);
-					offset = nextOffset;
-					nextOffset = ComputeOffset(ref offset, size);
+					textWriter.WriteLine();
+					textWriter.WriteLine("\t\tpublic override int Position");
+					textWriter.WriteLine("\t\t{");
+					textWriter.WriteLine("\t\t\tget");
+					textWriter.WriteLine("\t\t\t{");
+					textWriter.WriteLine("\t\t\t\treturn _position;");
+					textWriter.WriteLine("\t\t\t}");
+					textWriter.WriteLine("\t\t\tset");
+					textWriter.WriteLine("\t\t\t{");
+					textWriter.WriteLine("\t\t\t\t_position = value;");
+
+					nextOffset = 0;
+					offset = 0;
 					
-					if(layoutAttribute.Type.IsSubclassOf(typeof(TSTreeStreamEntry)))
+					foreach(TSLayoutAttribute layoutAttribute in layoutAttributes)
 					{
-						textWriter.WriteLine(string.Format("\t\t\t\t{0}.Position = _position + {1};", layoutAttribute.Name, offset));
+						var size = SizeOf(layoutAttribute.Type, false);
+						offset = nextOffset;
+						nextOffset = ComputeOffset(ref offset, size);
+						
+						if(layoutAttribute.Type.IsSubclassOf(typeof(TSTreeStreamEntry)))
+						{
+							textWriter.WriteLine(string.Format("\t\t\t\t{0}.Position = _position + {1};", layoutAttribute.Name, offset));
+						}
 					}
+					
+					textWriter.WriteLine("\t\t\t}");
+					textWriter.WriteLine("\t\t}");
 				}
-				
-				textWriter.WriteLine("\t\t\t}");
-				textWriter.WriteLine("\t\t}");
 				
 				textWriter.WriteLine();
 				textWriter.WriteLine("\t\tpublic override void Init(ITSTreeStream tree)");
@@ -251,58 +272,62 @@ namespace LLT
 		
 		public static int SizeOf(Type type, bool align)
 		{
+			var size = 0;
 			if(type.IsValueType)
 			{
 				return Marshal.SizeOf(type);
 			}
 			
-			var offset = 0;
-			var nextOffset = 0;
-			
-			foreach(TSLayoutAttribute layoutAttribute in type.GetCustomAttributes(typeof(TSLayoutAttribute), false))
+			foreach(var val in OffsetBuilder(0, type))
 			{
-				var size = 0;
-				if(layoutAttribute.Type.IsSubclassOf(typeof(TSTreeStreamEntry)) && layoutAttribute.Type.GetCustomAttributes(typeof(TSLayoutAttribute), false).Length > 0)
+				if(!(val is OffsetProperty))
 				{
-					size = SizeOf(layoutAttribute.Type, false);
+					size = (int)val;
+					break;
 				}
-				else if(layoutAttribute.Type.IsValueType)
-				{
-					size = Marshal.SizeOf(layoutAttribute.Type);
-				}
-				offset = nextOffset;
-				nextOffset = ComputeOffset(ref offset, size);
 			}
 			
 			if(align)
 			{
-				nextOffset = ((int)Math.Ceiling(nextOffset/(float)TSTreeStream<TSObject>.Alignment)) * TSTreeStream<TSObject>.Alignment;
+				size = ((int)Math.Ceiling(size/(float)TSTreeStream<TSObject>.Alignment)) * TSTreeStream<TSObject>.Alignment;
 			}
-			return nextOffset;
+			return size;
 		}
-		
-		
-		private static IEnumerable<KeyValuePair<string, EntryProperty>> OffsetBuilder(int offset, Type type)
+	
+		private static IEnumerable OffsetBuilder(int offset, Type type)
 		{
-			var nextOffset = offset;
+			var start = offset;
+			var nextOffset = 0;
 			foreach(TSLayoutAttribute layoutAttribute in type.GetCustomAttributes(typeof(TSLayoutAttribute), false).Cast<TSLayoutAttribute>().OrderBy(x=>x.Order))
 			{
-				var size = SizeOf(layoutAttribute.Type, false);
-				offset = nextOffset;
-				nextOffset = ComputeOffset(ref offset, size);
-				
 				if(layoutAttribute.Type.IsSubclassOf(typeof(TSTreeStreamEntry)) && layoutAttribute.Type.GetCustomAttributes(typeof(TSLayoutAttribute), false).Length > 0)
 				{
-					foreach(KeyValuePair<string, EntryProperty> kvp in OffsetBuilder(offset, layoutAttribute.Type))
+					foreach(var val in OffsetBuilder(offset, layoutAttribute.Type))
 					{
-						yield return new KeyValuePair<string, EntryProperty>(string.Format("{0}_{1}", layoutAttribute.Name, kvp.Key), kvp.Value);
+						if(!(val is OffsetProperty))
+						{
+							nextOffset = ComputeOffset(ref offset, (int)val);
+							break;
+						}
 					}
+					foreach(var val in OffsetBuilder(offset, layoutAttribute.Type))
+					{
+						var offsetProperty = val as OffsetProperty;
+						if(offsetProperty != null)
+						{
+							yield return new OffsetProperty(string.Format("{0}_{1}", layoutAttribute.Name, offsetProperty.Name), offsetProperty.Offset, offsetProperty.Type);
+						}
+					}
+					offset = nextOffset;
 				}
 				else if(layoutAttribute.Type.IsValueType)
 				{
-					yield return new KeyValuePair<string, EntryProperty>(string.Format("{0}", layoutAttribute.Name), new EntryProperty(offset, layoutAttribute.Type));
+					nextOffset = ComputeOffset(ref offset, Marshal.SizeOf(layoutAttribute.Type));
+					yield return new OffsetProperty(string.Format("{0}", layoutAttribute.Name), offset, layoutAttribute.Type);
+					offset = nextOffset;
 				}
 			}
+			yield return nextOffset - start;
 		}
 		
 		public static int ComputeOffset(ref int offset, int size)
