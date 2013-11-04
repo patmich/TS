@@ -10,7 +10,7 @@ namespace LLT
         string GetName(TSTreeStreamTag tag);
         List<ITSTreeStreamDFSEnumerator> Links { get; }
 		void Link(TSTreeStreamTag tag, ITSTreeStreamDFSEnumerator dfs);
-			
+		IntPtr Ptr { get; }
 		int ReadInt32(int position);
 		float ReadSingle(int position);
 		byte ReadByte(int position);

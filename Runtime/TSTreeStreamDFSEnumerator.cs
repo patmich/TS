@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections;
+using System;
 
 namespace LLT
 {
@@ -34,9 +35,9 @@ namespace LLT
 		}
 		
 		private readonly R _root;
-		private readonly ITSTreeStream _tree;
 		private readonly TagList _tagList;
 		
+        protected readonly ITSTreeStream _tree;
 		protected E _subEnumerator;
 		protected bool _link;
 		
@@ -55,10 +56,10 @@ namespace LLT
 		{
 			get
 			{
-				if(_link && _subEnumerator.Index > 0)
-				{
-					return _subEnumerator.Parent;
-				}
+				if(_link && _subEnumerator.Index > 1)
+                {
+                    return _subEnumerator.Parent;
+                }
 				return _parent;
 			}
 		}
@@ -67,7 +68,7 @@ namespace LLT
 		{
 			get
 			{
-				if(_link && _subEnumerator.Index > 0)
+				if(_link && _subEnumerator.Index > 1)
 				{
 					return _subEnumerator.ParentTag;
 				}
@@ -89,7 +90,40 @@ namespace LLT
 				return _tagList[_index]; 
 			}
     	}
-		
+
+#if ALLOW_UNSAFE
+        public IntPtr CurrentPtr
+        {
+            get
+            {
+                unsafe
+                {
+                    if(_link)
+                    {
+                        return _subEnumerator.CurrentPtr;
+                    }
+                    
+                    return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index].EntryPosition);
+                }
+            }
+        }
+        public IntPtr ParentPtr
+        {
+            get
+            {
+                unsafe
+                {
+                    if(_link && _subEnumerator.Index > 1)
+                    {
+                        return _subEnumerator.ParentPtr;
+                    }
+                    
+                    return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index - 1].EntryPosition);
+                }
+            }
+        }
+#endif
+        
 		public R Root
 		{
 			get
@@ -122,35 +156,16 @@ namespace LLT
 		
 		public virtual bool MoveNext (bool skipSubTree)
 		{
-			if(skipSubTree)
-			{
-				var poped = false;
-				while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
-				{
-					_index--;
-					poped = true;
-				}
-				if(_index == 0)
-				{
-					return false;
-				}
-				else
-				{
-					_tagList[_index].Position = _tagList[_index].SiblingPosition;
-					
-					if(poped)
-					{
-						_parent.Position = _tagList[_index - 1].EntryPosition;
-					}
-				}
-			}
-			else if(_tagList[_index].LinkIndex != ushort.MaxValue)
+			if(_tagList[_index].LinkIndex != ushort.MaxValue)
 			{
 				if(_subEnumerator == null)
 				{
 					_link = true;
 					_subEnumerator = _tree.Links[_tagList[_index].LinkIndex] as E;
 					CoreAssert.Fatal(_subEnumerator != null);
+                    
+                    _parent.Position = _tagList[_index].EntryPosition;
+                    _index++;
 				}
 				
 				if(_subEnumerator.MoveNext(skipSubTree))
@@ -162,7 +177,8 @@ namespace LLT
 					_subEnumerator.Reset();
 					_subEnumerator = null;
 					_link = false;
-					
+					_index--;
+                    
 					while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
 					{
 						_index--;
@@ -179,6 +195,28 @@ namespace LLT
 					}
 				}
 			}
+            else if(skipSubTree)
+            {
+                var poped = false;
+                while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
+                {
+                    _index--;
+                    poped = true;
+                }
+                if(_index == 0)
+                {
+                    return false;
+                }
+                else
+                {
+                    _tagList[_index].Position = _tagList[_index].SiblingPosition;
+                
+                    if(poped)
+                    {
+                        _parent.Position = _tagList[_index - 1].EntryPosition;
+                    }
+                }
+            }
 			else if(_tagList[_index].SubTreeSizeOf == 0)
 			{
 				if(_tagList[_index].SiblingPosition < _tagList[_index-1].SiblingPosition)

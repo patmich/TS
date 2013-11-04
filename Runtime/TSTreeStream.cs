@@ -22,8 +22,9 @@ namespace LLT
 		private readonly ITSTreeStreamDFSEnumerator _dfs;
 		
 		private TSTreeStreamTag _rootTag;
-		private GCHandle? _handle;
-		
+		private GCHandle _handle;
+		public IntPtr Ptr { get; private set; }
+        
 		public TSTreeStreamTag RootTag
 		{
 			get
@@ -103,6 +104,9 @@ namespace LLT
 			{
 				Objects[i].Init(this);
 			}
+            
+            _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
+            Ptr = _handle.AddrOfPinnedObject();
 		}
 		
 		
@@ -262,19 +266,6 @@ namespace LLT
             
             return false;
         }
-        
-		public IntPtr Pin()
-		{
-			CoreAssert.Fatal(!_handle.HasValue);
-			_handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
-			return _handle.Value.AddrOfPinnedObject();
-		}
-		
-		public void Release()
-		{
-			CoreAssert.Fatal(_handle.HasValue);
-			_handle.Value.Free();
-		}
 		
 		public int ReadInt32(int position)
 		{
@@ -425,11 +416,20 @@ namespace LLT
 			File.WriteAllBytes(path, _buffer);
 		}
 		
-		void IDisposable.Dispose ()
+		public void Dispose ()
 		{
-			CoreAssert.Fatal(!_handle.HasValue);
+			if(_handle.IsAllocated)
+            {
+                Ptr = IntPtr.Zero;
+                _handle.Free();
+            }
 		}
 		
+        ~TSTreeStream()
+        {
+            Dispose();
+        }
+        
 		public List<KeyValuePair<ITSTreeNode, int>> InitFromTree(ITSTreeNode root, ICoreStreamable meta, TSFactory factory)
 		{
 			var positions = new List<KeyValuePair<ITSTreeNode, int>>();
