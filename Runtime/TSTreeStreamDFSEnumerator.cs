@@ -3,7 +3,7 @@ using System.Collections;
 
 namespace LLT
 {
-	public sealed class TSTreeStreamDFSEnumerator<T>
+	public class TSTreeStreamDFSEnumerator<T>
 		where T : TSTreeStreamEntry, new()
 	{
 		private sealed class TagList : List<TSTreeStreamTag>
@@ -70,7 +70,7 @@ namespace LLT
 			Parent.Position = _tagList[0].EntryPosition;
 		}
 		
-		public bool MoveNext (bool skipSubTree)
+		public virtual bool MoveNext (bool skipSubTree)
 		{
 			if(skipSubTree)
 			{
