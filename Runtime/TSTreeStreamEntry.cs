@@ -7,10 +7,10 @@ namespace LLT
 	
 	public class TSTreeStreamEntry : ITSFactoryInstance
 	{
-	    protected ITSTreeStream _tree;
+	    public ITSTreeStream _tree;
 		protected int _position;
 		private string _name;
-
+		
 		public string Name 
 		{
 			get 

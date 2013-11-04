@@ -11,7 +11,7 @@ namespace LLT
 		[FieldOffset(4)]
 		public int SubTreeSizeOf;
 		[FieldOffset(8)]
-		public ushort JumpIndex;
+		public ushort LinkIndex;
 		[FieldOffset(10)]
 		public ushort ObjectIndex;
 		[FieldOffset(12)]

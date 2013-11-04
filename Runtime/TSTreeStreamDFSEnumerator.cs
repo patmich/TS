@@ -3,8 +3,9 @@ using System.Collections;
 
 namespace LLT
 {
-	public class TSTreeStreamDFSEnumerator<T>
+	public class TSTreeStreamDFSEnumerator<R, T, E> : ITSTreeStreamDFSEnumerator
 		where T : TSTreeStreamEntry, new()
+		where E : TSTreeStreamDFSEnumerator<R, T, E>
 	{
 		private sealed class TagList : List<TSTreeStreamTag>
 		{
@@ -32,16 +33,45 @@ namespace LLT
 			}
 		}
 		
+		private readonly R _root;
 		private readonly ITSTreeStream _tree;
 		private readonly TagList _tagList;
-		private int _index;
 		
-		public T Parent { get; private set; }
+		protected E _subEnumerator;
+		protected bool _link;
+		
+		private int _index;
+		private T _parent;
+		
+		public int Index
+		{
+			get
+			{
+				return _index;
+			}
+		}
+				
+		public T Parent 
+		{
+			get
+			{
+				if(_link && _subEnumerator.Index > 0)
+				{
+					return _subEnumerator.Parent;
+				}
+				return _parent;
+			}
+		}
 		
 		public TSTreeStreamTag ParentTag
 		{
 			get
 			{
+				if(_link && _subEnumerator.Index > 0)
+				{
+					return _subEnumerator.ParentTag;
+				}
+				
 				CoreAssert.Fatal(_index > 0);
 				return _tagList[_index - 1];
 			}
@@ -51,13 +81,31 @@ namespace LLT
     	{
         	get 
 			{
+				if(_link)
+				{
+					return _subEnumerator.Current;
+				}
+				
 				return _tagList[_index]; 
 			}
     	}
-
 		
-		public TSTreeStreamDFSEnumerator(ITSTreeStream tree)
+		public R Root
 		{
+			get
+			{
+				if(_link)
+				{
+					return _subEnumerator.Root;
+				}
+				
+				return _root;
+			}
+		}
+		
+		public TSTreeStreamDFSEnumerator(R root, ITSTreeStream tree)
+		{
+			_root = root;
 			_tree = tree;
 			
 			_tagList = new TagList(_tree);
@@ -65,9 +113,11 @@ namespace LLT
 			CoreAssert.Fatal(_tree.RootTag != null);
 			_tagList[0].Position = _tree.RootTag.Position;
 			
-			Parent = new T();
-			Parent.Init(_tree);
-			Parent.Position = _tagList[0].EntryPosition;
+			_parent = new T();
+			_parent.Init(_tree);
+			_parent.Position = _tagList[0].EntryPosition;
+			
+			_link = false;
 		}
 		
 		public virtual bool MoveNext (bool skipSubTree)
@@ -90,7 +140,42 @@ namespace LLT
 					
 					if(poped)
 					{
-						Parent.Position = _tagList[_index - 1].EntryPosition;
+						_parent.Position = _tagList[_index - 1].EntryPosition;
+					}
+				}
+			}
+			else if(_tagList[_index].LinkIndex != ushort.MaxValue)
+			{
+				if(_subEnumerator == null)
+				{
+					_link = true;
+					_subEnumerator = _tree.Links[_tagList[_index].LinkIndex] as E;
+					CoreAssert.Fatal(_subEnumerator != null);
+				}
+				
+				if(_subEnumerator.MoveNext(skipSubTree))
+				{
+					return true;
+				}
+				else
+				{
+					_subEnumerator.Reset();
+					_subEnumerator = null;
+					_link = false;
+					
+					while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
+					{
+						_index--;
+					}
+					
+					if(_index == 0)
+					{
+						return false;
+					}
+					else
+					{
+						_tagList[_index].Position = _tagList[_index].SiblingPosition;
+						_parent.Position = _tagList[_index - 1].EntryPosition;
 					}
 				}
 			}
@@ -114,13 +199,13 @@ namespace LLT
 					else
 					{
 						_tagList[_index].Position = _tagList[_index].SiblingPosition;
-						Parent.Position = _tagList[_index - 1].EntryPosition;
+						_parent.Position = _tagList[_index - 1].EntryPosition;
 					}
 				}
 			}
 			else
 			{
-				Parent.Position = _tagList[_index].EntryPosition;
+				_parent.Position = _tagList[_index].EntryPosition;
 				_index++;
 				_tagList[_index].Position = _tagList[_index - 1].FirstChildPosition;
 			}
@@ -135,7 +220,9 @@ namespace LLT
 
 		public void Reset ()
 		{
-			throw new System.NotImplementedException ();
+			_index = 0;
+			_parent.Position = _tagList[0].EntryPosition;
+			_link = false;
 		}
 	}
 }

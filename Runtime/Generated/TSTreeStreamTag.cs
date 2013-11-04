@@ -5,7 +5,7 @@ namespace LLT
 		public const int NameIndex_Offset = 0;
 		public const int EntrySizeOf_Offset = 2;
 		public const int SubTreeSizeOf_Offset = 4;
-		public const int JumpIndex_Offset = 8;
+		public const int LinkIndex_Offset = 8;
 		public const int ObjectIndex_Offset = 10;
 		public const int TypeIndex_Offset = 12;
 		public const int TSTreeStreamTagSizeOf = 16;
@@ -44,7 +44,7 @@ namespace LLT
 				_tree.Write(_position + 4, value);
 			}
 		}
-		public ushort JumpIndex
+		public ushort LinkIndex
 		{
 			get
 			{

@@ -52,8 +52,13 @@ namespace LLT
 			}
 			
 			_empty = false;
+			
+			_initial.Init(initial.Tree);
+			_current.Init(initial.Tree);
+			
 			_initial.Position = initial.Position;
 			_current.Position = _initial.Position;
+			
 			_initialized = false;
 			Done = false;
 		}
@@ -69,6 +74,7 @@ namespace LLT
 			}
 			
 			_empty = false;
+			
 			_initial.Position = _parent.FirstChildPosition;
 			_current.Position = _initial.Position;
 			_initialized = false;

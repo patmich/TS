@@ -9,15 +9,18 @@ using System.Text;
 namespace LLT
 {
 	[Serializable]
-	public abstract class TSTreeStream<T> : IDisposable, ITSTreeStream, ITreeStreamQuery<T>
-		where T : class, ITSObject, new()
+	public abstract class TSTreeStream<O> : IDisposable, ITSTreeStream, ITreeStreamQuery<O>
+		where O : class, ITSObject, new()
 	{
 		public const int Alignment = 4;
 		
-		protected abstract List<T> Objects { get; }
+		protected abstract List<O> Objects { get; }
 
 		private byte[] _buffer;		
 		private readonly List<string> _lookup = new List<string>();
+		private readonly List<ITSTreeStreamDFSEnumerator> _links = new List<ITSTreeStreamDFSEnumerator>();
+		private readonly ITSTreeStreamDFSEnumerator _dfs;
+		
 		private TSTreeStreamTag _rootTag;
 		private GCHandle? _handle;
 		
@@ -39,6 +42,14 @@ namespace LLT
 			get
 			{
 				return _buffer.Length;
+			}
+		}
+		
+		public List<ITSTreeStreamDFSEnumerator> Links
+		{
+			get
+			{
+				return _links;
 			}
 		}
 		
@@ -100,9 +111,17 @@ namespace LLT
 			return new TSTreeStreamTag(this, position);
 		}
 		
-		public T GetObject(int position)
+		public void Link(TSTreeStreamTag tag, ITSTreeStreamDFSEnumerator dfs)
 		{
-			var obj = new T();
+			CoreAssert.Fatal(_links.Count < ushort.MaxValue);
+			tag.LinkIndex = (ushort)_links.Count;
+			
+			_links.Add(dfs);
+		}
+		
+		public O GetObject(int position)
+		{
+			var obj = new O();
 			obj.Position = position;
 			
 			CoreAssert.Fatal(Objects.Count(x=>x.Position == position) == 0);
@@ -114,7 +133,7 @@ namespace LLT
 			return obj;
 		}
 		
-		public T FindObject(params string[] path)
+		public O FindObject(params string[] path)
 		{
 			var tag = FindTag(path);
 			if(tag == null || tag.ObjectIndex == ushort.MaxValue)
@@ -126,7 +145,7 @@ namespace LLT
 			return Objects[tag.ObjectIndex];
 		}
 		
-		public E FindEntry<E>(params string[] path)
+		private E FindEntry<E>(params string[] path)
 			where E : TSTreeStreamEntry, new()
 		{
 			var tag = FindTag(path);
@@ -496,7 +515,7 @@ namespace LLT
 				}
 				
 				var tag = new TSTreeStreamTagStructLayout();
-				tag.JumpIndex = ushort.MaxValue;
+				tag.LinkIndex = ushort.MaxValue;
 				
 				if(!string.IsNullOrEmpty(current.Name))
 				{

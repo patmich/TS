@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace LLT
 {
@@ -7,7 +8,9 @@ namespace LLT
 		TSTreeStreamTag RootTag { get; }
 		bool RebuildPath(TSTreeStreamTag tag, out string path);
         string GetName(TSTreeStreamTag tag);
-        
+        List<ITSTreeStreamDFSEnumerator> Links { get; }
+		void Link(TSTreeStreamTag tag, ITSTreeStreamDFSEnumerator dfs);
+			
 		int ReadInt32(int position);
 		float ReadSingle(int position);
 		byte ReadByte(int position);

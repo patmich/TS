@@ -5,7 +5,7 @@ namespace LLT
 	[TSLayout(typeof(ushort), "NameIndex", 0)]
 	[TSLayout(typeof(ushort), "EntrySizeOf", 1)]
 	[TSLayout(typeof(int), "SubTreeSizeOf", 2)]
-	[TSLayout(typeof(ushort), "JumpIndex", 3)]
+	[TSLayout(typeof(ushort), "LinkIndex", 3)]
 	[TSLayout(typeof(ushort), "ObjectIndex", 4)]
 	[TSLayout(typeof(byte), "TypeIndex", 5)]
 	public sealed partial class TSTreeStreamTag : TSTreeStreamEntry
@@ -52,6 +52,15 @@ namespace LLT
 				_siblingPosition = _firstChildPosition + SubTreeSizeOf;
 			}
 		}
+		
+		public ITSTreeStream Tree
+		{
+			get
+			{
+				return _tree;
+			}
+		}
+		
 		internal TSTreeStreamTag(ITSTreeStream tree, int position, ITSFactoryInstance current, List<TSTreeStreamTag> childs)
 	    {
 	       	_tree = tree;
@@ -64,7 +73,7 @@ namespace LLT
 			TypeIndex = (byte)current.FactoryTypeIndex;
 			
 			ObjectIndex = ushort.MaxValue;
-			JumpIndex = ushort.MaxValue;
+			LinkIndex = ushort.MaxValue;
 			
 			uint subTreeSizeOf = 0;
 			for(var i = 0; i < childs.Count; i++)
