@@ -15,15 +15,17 @@ namespace LLT
 		public const int Alignment = 4;
 		
 		protected abstract List<O> Objects { get; }
-
+		public abstract ITSTreeStreamDFSEnumerator Iter { get; }
+			
 		private byte[] _buffer;		
 		private readonly List<string> _lookup = new List<string>();
 		private readonly List<ITSTreeStreamDFSEnumerator> _links = new List<ITSTreeStreamDFSEnumerator>();
 		private readonly ITSTreeStreamDFSEnumerator _dfs;
 		
 		private TSTreeStreamTag _rootTag;
-		private GCHandle? _handle;
-		
+		private GCHandle _handle;
+		public IntPtr Ptr { get; private set; }
+        
 		public TSTreeStreamTag RootTag
 		{
 			get
@@ -103,6 +105,9 @@ namespace LLT
 			{
 				Objects[i].Init(this);
 			}
+            
+            _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
+            Ptr = _handle.AddrOfPinnedObject();
 		}
 		
 		
@@ -133,76 +138,48 @@ namespace LLT
 			return obj;
 		}
 		
-		public O FindObject(params string[] path)
-		{
-			var tag = FindTag(path);
-			if(tag == null || tag.ObjectIndex == ushort.MaxValue)
-			{
-				return null;
-			}
-
-			CoreAssert.Fatal(0 <= tag.ObjectIndex && tag.ObjectIndex < Objects.Count);
-			return Objects[tag.ObjectIndex];
-		}
-		
-		private E FindEntry<E>(params string[] path)
-			where E : TSTreeStreamEntry, new()
-		{
-			var tag = FindTag(path);
-			if(tag == null)
-			{
-				return null;
-			}
-			
-			var entry = new E();
-			
-			entry.Init(this);
-			entry.Position = tag.EntryPosition;
-			
-			return entry;
-		}
-		
 		public string GetName(TSTreeStreamTag tag)
 		{
+			if(tag.NameIndex == ushort.MaxValue)
+			{
+				return string.Empty;
+			}
+			
 			CoreAssert.Fatal(0 <= tag.NameIndex && tag.NameIndex < _lookup.Count);
 			return _lookup[tag.NameIndex];
 		}
 		
+		public ITSObject GetObject(TSTreeStreamTag tag)
+		{
+			if(tag.ObjectIndex == ushort.MaxValue)
+			{
+				return null;
+			}
+			
+			CoreAssert.Fatal(0 <= tag.ObjectIndex && tag.ObjectIndex < Objects.Count);
+			return Objects[tag.ObjectIndex];
+		}
+		
+		public O FindObject(params string[] path)
+		{
+			return FindObject(RootTag, path) as O;
+		}
+		
+		public O FindObject(TSTreeStreamTag tag, params string[] path)
+		{
+			Iter.MoveTo(tag, path);
+			return Iter.CurrentObject as O;
+		}
+		
 		public TSTreeStreamTag FindTag(params string[] path)
 		{
-			if(path.Length == 0)
-			{
-				return RootTag;
-			}
-			
-			var parentTag = new TSTreeStreamTag(this);
-			var tag = new TSTreeStreamTag(this);
-			
-			parentTag.Position = RootTag.Position;
-			tag.Position = parentTag.FirstChildPosition;
-			
-			var index = 0;
-			while(tag.Position < parentTag.SiblingPosition)
-			{
-				if(tag.NameIndex != ushort.MaxValue && path[index] == _lookup[tag.NameIndex])
-				{
-					if(++index < path.Length)
-					{
-						parentTag.Position = tag.Position;
-						tag.Position = parentTag.FirstChildPosition;
-					}
-					else
-					{
-						return tag;
-					}
-				}
-				else
-				{
-					tag.Position = tag.SiblingPosition;
-				}
-			}
-			
-			return null;
+			return FindTag(RootTag, path);
+		}
+		
+		public TSTreeStreamTag FindTag(TSTreeStreamTag tag, params string[] path)
+		{
+			Iter.MoveTo(tag, path);
+			return Iter.Current;
 		}
 		
         public bool RebuildPath(TSTreeStreamTag tag, out string path)
@@ -262,19 +239,6 @@ namespace LLT
             
             return false;
         }
-        
-		public IntPtr Pin()
-		{
-			CoreAssert.Fatal(!_handle.HasValue);
-			_handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
-			return _handle.Value.AddrOfPinnedObject();
-		}
-		
-		public void Release()
-		{
-			CoreAssert.Fatal(_handle.HasValue);
-			_handle.Value.Free();
-		}
 		
 		public int ReadInt32(int position)
 		{
@@ -425,11 +389,20 @@ namespace LLT
 			File.WriteAllBytes(path, _buffer);
 		}
 		
-		void IDisposable.Dispose ()
+		public void Dispose ()
 		{
-			CoreAssert.Fatal(!_handle.HasValue);
+			if(_handle.IsAllocated)
+            {
+                Ptr = IntPtr.Zero;
+                _handle.Free();
+            }
 		}
 		
+        ~TSTreeStream()
+        {
+            Dispose();
+        }
+        
 		public List<KeyValuePair<ITSTreeNode, int>> InitFromTree(ITSTreeNode root, ICoreStreamable meta, TSFactory factory)
 		{
 			var positions = new List<KeyValuePair<ITSTreeNode, int>>();
