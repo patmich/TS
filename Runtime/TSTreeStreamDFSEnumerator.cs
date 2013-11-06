@@ -56,19 +56,12 @@ namespace LLT
 		{
 			get
 			{
-<<<<<<< HEAD
 				if(_link)
 				{
 					return _subEnumerator.Parent;
 				}
 			
 				_parent.Position = ParentTag.Position;
-=======
-				if(_link && _subEnumerator.Index > 1)
-                {
-                    return _subEnumerator.Parent;
-                }
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
 				return _parent;
 			}
 		}
@@ -100,7 +93,6 @@ namespace LLT
 				return _tagList[_index]; 
 			}
     	}
-<<<<<<< HEAD
 		
 		public string CurrentName
 		{
@@ -126,9 +118,6 @@ namespace LLT
 			}
 		}
 		
-=======
-
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
 #if ALLOW_UNSAFE
         public IntPtr CurrentPtr
         {
@@ -156,10 +145,7 @@ namespace LLT
                         return _subEnumerator.ParentPtr;
                     }
                     
-<<<<<<< HEAD
 					CoreAssert.Fatal(_index > 0);
-=======
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
                     return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index - 1].EntryPosition);
                 }
             }
@@ -198,28 +184,16 @@ namespace LLT
 		
 		public virtual bool MoveNext (bool skipSubTree)
 		{
-<<<<<<< HEAD
 			if(_tagList[_index].LinkIndex != ushort.MaxValue || _link)
 			{
 				if(!_link)
-=======
-			if(_tagList[_index].LinkIndex != ushort.MaxValue)
-			{
-				if(_subEnumerator == null)
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
 				{
 					_link = true;
 					_subEnumerator = _tree.Links[_tagList[_index].LinkIndex] as E;
 					CoreAssert.Fatal(_subEnumerator != null);
-<<<<<<< HEAD
 					_subEnumerator.Reset();
 					
 					_index++;
-=======
-                    
-                    _parent.Position = _tagList[_index].EntryPosition;
-                    _index++;
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
 				}
 				if(_subEnumerator.MoveNext(skipSubTree))
 				{
@@ -230,14 +204,9 @@ namespace LLT
 					_subEnumerator.Reset();
 					_subEnumerator = null;
 					_link = false;
-<<<<<<< HEAD
 
 					_index--;
 					
-=======
-					_index--;
-                    
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
 					while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
 					{
 						_index--;
@@ -253,21 +222,11 @@ namespace LLT
 					}
 				}
 			}
-<<<<<<< HEAD
 			else if(skipSubTree)
             {
                 while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
                 {
                     _index--;
-=======
-            else if(skipSubTree)
-            {
-                var poped = false;
-                while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
-                {
-                    _index--;
-                    poped = true;
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
                 }
                 if(_index == 0)
                 {
@@ -276,14 +235,6 @@ namespace LLT
                 else
                 {
                     _tagList[_index].Position = _tagList[_index].SiblingPosition;
-<<<<<<< HEAD
-=======
-                
-                    if(poped)
-                    {
-                        _parent.Position = _tagList[_index - 1].EntryPosition;
-                    }
->>>>>>> ee27a72531ee4ae70edec09cf59386e883cb1654
                 }
             }
 			else if(_tagList[_index].SubTreeSizeOf == 0)
