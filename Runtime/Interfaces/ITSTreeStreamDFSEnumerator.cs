@@ -13,6 +13,7 @@ namespace LLT
 		TSTreeStreamTag Current { get; }
 		string CurrentName { get; }
 		ITSObject CurrentObject { get; }
+        ITSObject ParentObject { get; }
 	}
 }
 

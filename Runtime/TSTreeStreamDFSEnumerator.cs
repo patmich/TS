@@ -61,7 +61,7 @@ namespace LLT
 					return _subEnumerator.Parent;
 				}
 			
-				_parent.Position = ParentTag.Position;
+				_parent.Position = ParentTag.EntryPosition;
 				return _parent;
 			}
 		}
@@ -118,6 +118,18 @@ namespace LLT
 			}
 		}
 		
+        public ITSObject ParentObject
+        {
+            get
+            {
+                if(_link)
+                {
+                    return _subEnumerator.ParentObject;
+                }
+                return _tree.GetObject(ParentTag);
+            }
+        }
+        
 #if ALLOW_UNSAFE
         public IntPtr CurrentPtr
         {

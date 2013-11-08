@@ -111,7 +111,7 @@ namespace LLT
 		}
 		
 		
-		internal TSTreeStreamTag CreateTag(int position)
+		public TSTreeStreamTag CreateTag(int position)
 		{
 			return new TSTreeStreamTag(this, position);
 		}
@@ -124,19 +124,7 @@ namespace LLT
 			_links.Add(dfs);
 		}
 		
-		public O GetObject(int position)
-		{
-			var obj = new O();
-			obj.Position = position;
-			
-			CoreAssert.Fatal(Objects.Count(x=>x.Position == position) == 0);
-			Objects.Add(obj);
 		
-			var tag = CreateTag(position);
-			tag.ObjectIndex = (ushort)(Objects.Count - 1);
-			
-			return obj;
-		}
 		
 		public string GetName(TSTreeStreamTag tag)
 		{
@@ -152,8 +140,16 @@ namespace LLT
 		public ITSObject GetObject(TSTreeStreamTag tag)
 		{
 			if(tag.ObjectIndex == ushort.MaxValue)
-			{
-				return null;
+			{                
+				var obj = new O();
+                obj.Position = tag.Position;
+                obj.Init(this);
+                
+                CoreAssert.Fatal(Objects.Count(x=>x.Position == tag.Position) == 0);
+                Objects.Add(obj);
+                
+                tag.ObjectIndex = (ushort)(Objects.Count - 1);
+                return obj;
 			}
 			
 			CoreAssert.Fatal(0 <= tag.ObjectIndex && tag.ObjectIndex < Objects.Count);
@@ -167,8 +163,17 @@ namespace LLT
 		
 		public O FindObject(TSTreeStreamTag tag, params string[] path)
 		{
-			Iter.MoveTo(tag, path);
-			return Iter.CurrentObject as O;
+			if(Iter.MoveTo(tag, path))
+            {
+                if(Iter.Current.LinkIndex != ushort.MaxValue)
+                {
+                    Iter.MoveNext(false);
+                    return Iter.ParentObject as O;
+                }
+                
+    			return Iter.CurrentObject as O;
+            }
+            return null;
 		}
 		
 		public TSTreeStreamTag FindTag(params string[] path)
