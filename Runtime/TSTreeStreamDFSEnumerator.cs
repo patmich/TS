@@ -129,6 +129,18 @@ namespace LLT
 			}
 		}
 		
+        public ITSTreeStream Tree
+        {
+            get
+            {
+                if(_link)
+                {
+                    return _subEnumerator.Tree;
+                }
+                return _tree;
+            }
+        }
+        
 		#if ALLOW_UNSAFE
 		public IntPtr CurrentPtr
 		{
@@ -275,6 +287,7 @@ namespace LLT
 		
 		public void Reset(TSTreeStreamTag parent, TSTreeStreamTag tag)
 		{
+            CoreAssert.Fatal(parent.Tree == _tree && tag.Tree == _tree);
 			_index = 1;
 			
 			_tagList[0].Position = parent.Position;
@@ -286,6 +299,8 @@ namespace LLT
 		
 		public void Reset(TSTreeStreamTag tag)
 		{
+            CoreAssert.Fatal(tag.Tree == _tree);
+            
 			_index = 0;
 			
 			_tagList[0].Position = tag.Position;
@@ -334,6 +349,8 @@ namespace LLT
 			
 			return false;
 		}
+        
+        
 	}
 }
 
