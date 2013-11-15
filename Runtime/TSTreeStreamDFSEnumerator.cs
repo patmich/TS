@@ -4,9 +4,9 @@ using System;
 
 namespace LLT
 {
-	public class TSTreeStreamDFSEnumerator<R, T, E> : ITSTreeStreamDFSEnumerator
+	public class TSTreeStreamDFSEnumerator<T, E> : ITSTreeStreamDFSEnumerator
 		where T : TSTreeStreamEntry, new()
-			where E : TSTreeStreamDFSEnumerator<R, T, E>
+			where E : TSTreeStreamDFSEnumerator<T, E>
 	{
 		private sealed class TagList : List<TSTreeStreamTag>
 		{
@@ -33,8 +33,7 @@ namespace LLT
 				}
 			}
 		}
-		
-		private readonly R _root;
+
 		private readonly TagList _tagList;
 		
 		protected readonly ITSTreeStream _tree;
@@ -164,22 +163,8 @@ namespace LLT
 		}
 		#endif
 		
-		public R Root
+		public TSTreeStreamDFSEnumerator(ITSTreeStream tree)
 		{
-			get
-			{
-				if(_link)
-				{
-					return _subEnumerator.Root;
-				}
-				
-				return _root;
-			}
-		}
-		
-		public TSTreeStreamDFSEnumerator(R root, ITSTreeStream tree)
-		{
-			_root = root;
 			_tree = tree;
 			
 			_tagList = new TagList(_tree);
