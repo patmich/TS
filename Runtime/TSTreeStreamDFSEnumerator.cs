@@ -6,7 +6,7 @@ namespace LLT
 {
 	public class TSTreeStreamDFSEnumerator<R, T, E> : ITSTreeStreamDFSEnumerator
 		where T : TSTreeStreamEntry, new()
-		where E : TSTreeStreamDFSEnumerator<R, T, E>
+			where E : TSTreeStreamDFSEnumerator<R, T, E>
 	{
 		private sealed class TagList : List<TSTreeStreamTag>
 		{
@@ -37,7 +37,7 @@ namespace LLT
 		private readonly R _root;
 		private readonly TagList _tagList;
 		
-        protected readonly ITSTreeStream _tree;
+		protected readonly ITSTreeStream _tree;
 		protected E _subEnumerator;
 		protected bool _link;
 		
@@ -51,7 +51,7 @@ namespace LLT
 				return _index;
 			}
 		}
-				
+		
 		public T Parent 
 		{
 			get
@@ -60,7 +60,7 @@ namespace LLT
 				{
 					return _subEnumerator.Parent;
 				}
-			
+				
 				_parent.Position = ParentTag.EntryPosition;
 				return _parent;
 			}
@@ -81,8 +81,8 @@ namespace LLT
 		}
 		
 		public TSTreeStreamTag Current
-    	{
-        	get 
+		{
+			get 
 			{
 				if(_link)
 				{
@@ -92,7 +92,7 @@ namespace LLT
 				CoreAssert.Fatal(_index < _tagList.Count);
 				return _tagList[_index]; 
 			}
-    	}
+		}
 		
 		public string CurrentName
 		{
@@ -118,52 +118,52 @@ namespace LLT
 			}
 		}
 		
-        public ITSObject ParentObject
-        {
-            get
-            {
-                if(_link)
-                {
-                    return _subEnumerator.ParentObject;
-                }
-                return _tree.GetObject(ParentTag);
-            }
-        }
-        
-#if ALLOW_UNSAFE
-        public IntPtr CurrentPtr
-        {
-            get
-            {
-                unsafe
-                {
-                    if(_link)
-                    {
-                        return _subEnumerator.CurrentPtr;
-                    }
-                    
-                    return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index].EntryPosition);
-                }
-            }
-        }
-        public IntPtr ParentPtr
-        {
-            get
-            {
-                unsafe
-                {
-                    if(_link && _subEnumerator.Index > 1)
-                    {
-                        return _subEnumerator.ParentPtr;
-                    }
-                    
+		public ITSObject ParentObject
+		{
+			get
+			{
+				if(_link)
+				{
+					return _subEnumerator.ParentObject;
+				}
+				return _tree.GetObject(ParentTag);
+			}
+		}
+		
+		#if ALLOW_UNSAFE
+		public IntPtr CurrentPtr
+		{
+			get
+			{
+				unsafe
+				{
+					if(_link)
+					{
+						return _subEnumerator.CurrentPtr;
+					}
+					
+					return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index].EntryPosition);
+				}
+			}
+		}
+		public IntPtr ParentPtr
+		{
+			get
+			{
+				unsafe
+				{
+					if(_link && _subEnumerator.Index > 1)
+					{
+						return _subEnumerator.ParentPtr;
+					}
+					
 					CoreAssert.Fatal(_index > 0);
-                    return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index - 1].EntryPosition);
-                }
-            }
-        }
-#endif
-        
+					return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index - 1].EntryPosition);
+				}
+			}
+		}
+		#endif
+		
 		public R Root
 		{
 			get
@@ -216,7 +216,7 @@ namespace LLT
 					_subEnumerator.Reset();
 					_subEnumerator = null;
 					_link = false;
-
+					
 					_index--;
 					
 					while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
@@ -235,20 +235,20 @@ namespace LLT
 				}
 			}
 			else if(skipSubTree)
-            {
-                while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
-                {
-                    _index--;
-                }
-                if(_index == 0)
-                {
-                    return false;
-                }
-                else
-                {
-                    _tagList[_index].Position = _tagList[_index].SiblingPosition;
-                }
-            }
+			{
+				while(_index > 0 && _tagList[_index].SiblingPosition == _tagList[_index-1].SiblingPosition)
+				{
+					_index--;
+				}
+				if(_index == 0)
+				{
+					return false;
+				}
+				else
+				{
+					_tagList[_index].Position = _tagList[_index].SiblingPosition;
+				}
+			}
 			else if(_tagList[_index].SubTreeSizeOf == 0)
 			{
 				if(_tagList[_index].SiblingPosition < _tagList[_index-1].SiblingPosition)
@@ -288,6 +288,17 @@ namespace LLT
 			
 		}
 		
+		public void Reset(TSTreeStreamTag parent, TSTreeStreamTag tag)
+		{
+			_index = 1;
+			
+			_tagList[0].Position = parent.Position;
+			_tagList[1].Position = tag.Position;
+			_link = false;
+			
+			_subEnumerator = null;
+		}
+		
 		public void Reset(TSTreeStreamTag tag)
 		{
 			_index = 0;
@@ -316,7 +327,7 @@ namespace LLT
 			{
 				return true;
 			}
-		
+			
 			var index = 0;
 			var skipSubTree = false;
 			while(MoveNext(skipSubTree))
