@@ -14,7 +14,7 @@ namespace LLT
 	{
 		public const int Alignment = 4;
 		
-		protected abstract List<O> Objects { get; }
+		
 		public abstract ITSTreeStreamDFSEnumerator Iter { get; }
 			
 		private byte[] _buffer;		
@@ -25,7 +25,9 @@ namespace LLT
 		private TSTreeStreamTag _rootTag;
 		private GCHandle _handle;
 		public IntPtr Ptr { get; private set; }
-        
+
+        private List<O> _objects = new List<O>();
+
 		public TSTreeStreamTag RootTag
 		{
 			get
@@ -92,7 +94,7 @@ namespace LLT
 					sb.Remove(0, sb.Length);
 				}
 				
-				align = Alignment - (stream.Position % Alignment);
+				align = Alignment - (stream.Position % Alignment); 
 				if(align != Alignment)
 				{
 					stream.Position += align;
@@ -101,11 +103,6 @@ namespace LLT
 				_rootTag = CreateTag((int)stream.Position);
 			}
 			
-			for(var i = 0; i < Objects.Count; i++)
-			{
-				Objects[i].Init(this);
-			}
-            
             _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
             Ptr = _handle.AddrOfPinnedObject();
 		}
@@ -145,15 +142,15 @@ namespace LLT
                 obj.Position = tag.Position;
                 obj.Init(this);
                 
-                CoreAssert.Fatal(Objects.Count(x=>x.Position == tag.Position) == 0);
-                Objects.Add(obj);
+                CoreAssert.Fatal(_objects.Count(x=>x.Position == tag.Position) == 0);
+                _objects.Add(obj);
                 
-                tag.ObjectIndex = (ushort)(Objects.Count - 1);
+                tag.ObjectIndex = (ushort)(_objects.Count - 1);
                 return obj;
 			}
 			
-			CoreAssert.Fatal(0 <= tag.ObjectIndex && tag.ObjectIndex < Objects.Count);
-			return Objects[tag.ObjectIndex];
+            CoreAssert.Fatal(0 <= tag.ObjectIndex && tag.ObjectIndex < _objects.Count);
+            return _objects[tag.ObjectIndex];
 		}
 		
 		public O FindObject(params string[] path)
@@ -163,6 +160,7 @@ namespace LLT
 		
 		public O FindObject(TSTreeStreamTag tag, params string[] path)
 		{
+            CoreAssert.Fatal(tag.Tree == this);
 			if(Iter.MoveTo(tag, path))
             {
                 if(Iter.Current.LinkIndex != ushort.MaxValue)
@@ -176,6 +174,42 @@ namespace LLT
             return null;
 		}
 		
+        public O FindFirstObject(string name)
+        {
+            return FindFirstObject(RootTag, name);
+        }
+
+        public O FindFirstObject(TSTreeStreamTag tag, string name)
+        {
+            Iter.Reset(tag);
+            
+            while(Iter.MoveNext(false))
+            {
+                if(Iter.CurrentName == name)
+                {
+                    return FindObject(Iter.Current);
+                }
+            }
+            
+            return null;
+        }
+
+        public List<O> GetChilds(TSTreeStreamTag tag)
+        {
+            CoreAssert.Fatal(tag.Tree == this);
+            Iter.Reset(tag);
+
+            var retVal = new List<O>();
+            var skipSubTree = false;
+            while(Iter.MoveNext(skipSubTree))
+            {
+                skipSubTree = true;
+                retVal.Add(Iter.CurrentObject as O);
+            }
+
+            return retVal;
+        }
+
 		public TSTreeStreamTag FindTag(params string[] path)
 		{
 			return FindTag(RootTag, path);
@@ -394,12 +428,22 @@ namespace LLT
 			File.WriteAllBytes(path, _buffer);
 		}
 		
+        public byte[] GetAllBytes() 
+        {
+            return _buffer.ToArray();
+        }
+
 		public void Dispose ()
 		{
 			if(_handle.IsAllocated)
             {
                 Ptr = IntPtr.Zero;
                 _handle.Free();
+            }
+
+            for(var i = 0; i < _objects.Count; i++)
+            {
+                _objects[i].Dispose();
             }
 		}
 		
@@ -408,7 +452,7 @@ namespace LLT
             Dispose();
         }
         
-		public List<KeyValuePair<ITSTreeNode, int>> InitFromTree(ITSTreeNode root, ICoreStreamable meta, TSFactory factory)
+        public List<KeyValuePair<ITSTreeNode, int>> InitFromTree(ITSTreeNode rootNode, ICoreStreamable meta, TSFactory factory)
 		{
 			var positions = new List<KeyValuePair<ITSTreeNode, int>>();
 			
@@ -419,7 +463,7 @@ namespace LLT
 				var writer = new BinaryWriter(stream);
 				using(var treeStream = new MemoryStream())
 				{
-					BuildRecursive(new BinaryWriter(treeStream), root, ref positions);
+                    BuildRecursive(new BinaryWriter(treeStream), rootNode, ref positions);
 					
 					long align = 0;
 					// Write meta data.

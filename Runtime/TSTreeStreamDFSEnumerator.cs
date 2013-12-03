@@ -16,22 +16,6 @@ namespace LLT
 			{
 				_tree = tree;
 			}
-			
-			public new TSTreeStreamTag this[int index]
-			{
-				get
-				{
-					if(index < Count)
-					{
-						return base[index];
-					}
-					
-					CoreAssert.Fatal(index <= Count);
-					var retVal = new TSTreeStreamTag(_tree);
-					base.Add(retVal);
-					return retVal;
-				}
-			}
 		}
 
 		private readonly TagList _tagList;
@@ -182,6 +166,8 @@ namespace LLT
 			_tagList = new TagList(_tree);
 			
 			CoreAssert.Fatal(_tree.RootTag != null);
+
+			_tagList.Add(new TSTreeStreamTag(_tree));
 			_tagList[0].Position = _tree.RootTag.Position;
 			
 			_parent = new T();
@@ -193,12 +179,13 @@ namespace LLT
 		
 		public virtual bool MoveNext (bool skipSubTree)
 		{
-			if(_tagList[_index].LinkIndex != ushort.MaxValue || _link)
+			var current = _tagList[_index];
+			if(current.LinkIndex != ushort.MaxValue || _link)
 			{
 				if(!_link)
 				{
 					_link = true;
-					_subEnumerator = _tree.Links[_tagList[_index].LinkIndex] as E;
+					_subEnumerator = _tree.Links[current.LinkIndex] as E;
 					CoreAssert.Fatal(_subEnumerator != null);
 					_subEnumerator.Reset();
 					
@@ -246,11 +233,11 @@ namespace LLT
 					_tagList[_index].Position = _tagList[_index].SiblingPosition;
 				}
 			}
-			else if(_tagList[_index].SubTreeSizeOf == 0)
+			else if(current.SubTreeSizeOf == 0)
 			{
-				if(_tagList[_index].SiblingPosition < _tagList[_index-1].SiblingPosition)
+				if(current.SiblingPosition < _tagList[_index-1].SiblingPosition)
 				{
-					_tagList[_index].Position = _tagList[_index].SiblingPosition;
+					current.Position = current.SiblingPosition;
 				}
 				else
 				{
@@ -274,7 +261,13 @@ namespace LLT
 			{
 				//_parent.Position = _tagList[_index].EntryPosition;
 				_index++;
-				_tagList[_index].Position = _tagList[_index - 1].FirstChildPosition;
+
+				if(_tagList.Count == _index)
+				{
+					_tagList.Add(new TSTreeStreamTag(_tree));
+				}
+
+				_tagList[_index].Position = current.FirstChildPosition;
 			}
 			
 			return true;
@@ -291,6 +284,12 @@ namespace LLT
 			_index = 1;
 			
 			_tagList[0].Position = parent.Position;
+
+			if(_tagList.Count == 1)
+			{
+				_tagList.Add(new TSTreeStreamTag(_tree));
+			}
+
 			_tagList[1].Position = tag.Position;
 			_link = false;
 			
