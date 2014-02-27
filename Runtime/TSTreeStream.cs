@@ -210,6 +210,20 @@ namespace LLT
             return retVal;
         }
 
+        public void FillChilds(TSTreeStreamTag tag, List<O> childs)
+        {
+            CoreAssert.Fatal(tag.Tree == this);
+            Iter.Reset(tag);
+            
+            childs.Clear();
+            var skipSubTree = false;
+            while(Iter.MoveNext(skipSubTree))
+            {
+                skipSubTree = true;
+                childs.Add(Iter.CurrentObject as O);
+            }
+        }
+
 		public TSTreeStreamTag FindTag(params string[] path)
 		{
 			return FindTag(RootTag, path);
@@ -255,7 +269,7 @@ namespace LLT
                     }
                     return false;
                 }
-                else if(tag.Position <= entryPosition && entryPosition <= tag.FirstChildPosition)
+				else if(tag.FirstChildPosition < entryPosition && entryPosition < tag.SiblingPosition)
                 {
                     if(tag.NameIndex != ushort.MaxValue)
                     {
@@ -451,156 +465,5 @@ namespace LLT
         {
             Dispose();
         }
-        
-        public List<KeyValuePair<ITSTreeNode, int>> InitFromTree(ITSTreeNode rootNode, ICoreStreamable meta, TSFactory factory)
-		{
-			var positions = new List<KeyValuePair<ITSTreeNode, int>>();
-			
-			_buffer = new byte[TSTreeStreamTag.TSTreeStreamTagSizeOf];
-			
-			using(var stream = new MemoryStream())
-			{
-				var writer = new BinaryWriter(stream);
-				using(var treeStream = new MemoryStream())
-				{
-                    BuildRecursive(new BinaryWriter(treeStream), rootNode, ref positions);
-					
-					long align = 0;
-					// Write meta data.
-					if(meta != null)
-					{
-						meta.Write(writer);
-						
-						align = Alignment - (stream.Position % Alignment);
-						if(align != Alignment)
-						{
-							stream.Position += align;
-						}
-					}
-					
-					// Write string lookup table.
-					writer.Write(_lookup.Count);
-					for (var i = 0; i < _lookup.Count; i++)
-		            {
-		                foreach (char c in _lookup[i])
-		                {
-		                    writer.Write((byte)c);
-		                }
-		                writer.Write((byte)0);
-		            }
-					
-					align = Alignment - (stream.Position % Alignment);
-					if(align != Alignment)
-					{
-						stream.Position += align;
-					}
-					
-					// Cache tree position.
-					var treePosition = writer.BaseStream.Position;
-					
-					var copyBuffer = new byte[treeStream.Position];
-					treeStream.Position = 0;
-					treeStream.Read(copyBuffer, 0, copyBuffer.Length);
-					
-					// Write tree data.
-					writer.Write(copyBuffer);
-					
-					// Build buffer.
-					_buffer = new byte[writer.BaseStream.Position];
-					stream.Position = 0;
-					stream.Read(_buffer, 0, _buffer.Length);
-					
-					_rootTag = CreateTag((int)treePosition);
-					
-					for(var i = 0; i < positions.Count; i++)
-					{
-						positions[i] = new KeyValuePair<ITSTreeNode, int>(positions[i].Key, positions[i].Value + (int)treePosition);
-					}
-				}
-			}
-			
-			return positions;
-		}
-		
-		private TSTreeStreamTagStructLayout BuildRecursive(BinaryWriter writer, ITSTreeNode current, ref List<KeyValuePair<ITSTreeNode, int>> positions)
-		{
-			using(var stream = new MemoryStream())
-			{
-				var subTreeWriter = new BinaryWriter(stream);
-				
-				var childPositions = new List<KeyValuePair<ITSTreeNode, int>>();
-				var childs = new List<TSTreeStreamTagStructLayout>();
-				for (var i = 0; i < current.Childs.Count; i++)
-				{
-				    var child = BuildRecursive(subTreeWriter, current.Childs[i], ref childPositions);
-				    childs.Add(child);
-				}
-				
-				var tag = new TSTreeStreamTagStructLayout();
-				tag.LinkIndex = ushort.MaxValue;
-				
-				if(!string.IsNullOrEmpty(current.Name))
-				{
-					var nameIndex = _lookup.IndexOf(current.Name);
-					if(nameIndex == -1)
-					{
-						CoreAssert.Fatal(_lookup.Count < ushort.MaxValue);
-						tag.NameIndex = (ushort)_lookup.Count;
-						_lookup.Add(current.Name);
-					}
-					else
-					{
-						CoreAssert.Fatal(nameIndex < ushort.MaxValue);
-						tag.NameIndex = (ushort)nameIndex;
-					}
-				}
-				else
-				{
-					tag.NameIndex = ushort.MaxValue;
-				}
-				
-				tag.ObjectIndex = ushort.MaxValue;
-				
-				CoreAssert.Fatal(current.FactoryTypeIndex < byte.MaxValue);
-				tag.TypeIndex = (byte)current.FactoryTypeIndex;
-				
-				CoreAssert.Fatal(current.SizeOf < ushort.MaxValue);
-				tag.EntrySizeOf = (ushort)current.SizeOf;
-			
-				var subTreeSizeOf = 0;
-				for(var i = 0; i < childs.Count; i++)
-				{
-					subTreeSizeOf += childs[i].EntrySizeOf + childs[i].SubTreeSizeOf + TSTreeStreamTag.TSTreeStreamTagSizeOf;
-				}
-
-				CoreAssert.Fatal(subTreeSizeOf < int.MaxValue);
-				tag.SubTreeSizeOf = subTreeSizeOf;
-				
-				var currentPosition = (int)writer.BaseStream.Position;
-				
-				var buffer = new byte[Marshal.SizeOf(tag)];
-				var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-				Marshal.StructureToPtr(tag, handle.AddrOfPinnedObject(), false);
-				handle.Free();
-				writer.Write(buffer);
-
-				writer.Write(current.ToBytes());
-				
-				for(var i = 0; i < childPositions.Count; i++)
-				{
-					childPositions[i] = new KeyValuePair<ITSTreeNode, int>(childPositions[i].Key, childPositions[i].Value + (int)writer.BaseStream.Position);
-				}
-				
-				buffer = new byte[stream.Position];
-				stream.Position = 0;
-				stream.Read(buffer, 0, buffer.Length);
-				writer.Write(buffer);
-				
-				positions.AddRange(childPositions);
-				positions.Add(new KeyValuePair<ITSTreeNode, int>(current,currentPosition));
-				
-				return tag;
-			}
-		}
 	}
 }
