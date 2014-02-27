@@ -121,7 +121,11 @@ namespace LLT
 			_links.Add(dfs);
 		}
 		
-		
+		public string GetString(int index)
+		{
+			CoreAssert.Fatal(0 <= index && index < _lookup.Count);
+			return _lookup[index];
+		}
 		
 		public string GetName(TSTreeStreamTag tag)
 		{
@@ -584,7 +588,7 @@ namespace LLT
 				handle.Free();
 				writer.Write(buffer);
 
-				writer.Write(current.ToBytes());
+				writer.Write(current.ToBytes(_lookup));
 				
 				for(var i = 0; i < childPositions.Count; i++)
 				{

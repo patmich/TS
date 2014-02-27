@@ -8,6 +8,7 @@ namespace LLT
 		TSTreeStreamTag RootTag { get; }
 		bool RebuildPath(TSTreeStreamTag tag, out string path);
         string GetName(TSTreeStreamTag tag);
+		string GetString(int index);
         List<ITSTreeStreamDFSEnumerator> Links { get; }
 		void Link(TSTreeStreamTag tag, ITSTreeStreamDFSEnumerator dfs);
 		IntPtr Ptr { get; }	
