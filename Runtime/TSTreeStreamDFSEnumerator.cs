@@ -6,7 +6,7 @@ namespace LLT
 {
 	public class TSTreeStreamDFSEnumerator<T, E> : ITSTreeStreamDFSEnumerator
 		where T : TSTreeStreamEntry, new()
-			where E : TSTreeStreamDFSEnumerator<T, E>
+		where E : TSTreeStreamDFSEnumerator<T, E>
 	{
 		private sealed class TagList : List<TSTreeStreamTag>
 		{
@@ -137,7 +137,7 @@ namespace LLT
 						return _subEnumerator.CurrentPtr;
 					}
 					
-					return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index].EntryPosition);
+					return new IntPtr((byte*)_tree.TextAsset.AddrOfPinnedObject() + _tagList[_index].EntryPosition);
 				}
 			}
 		}
@@ -153,7 +153,7 @@ namespace LLT
 					}
 					
 					CoreAssert.Fatal(_index > 0);
-					return new IntPtr((byte*)_tree.Ptr.ToPointer() + _tagList[_index - 1].EntryPosition);
+					return new IntPtr((byte*)_tree.TextAsset.AddrOfPinnedObject() + _tagList[_index - 1].EntryPosition);
 				}
 			}
 		}
@@ -171,7 +171,7 @@ namespace LLT
 			_tagList[0].Position = _tree.RootTag.Position;
 			
 			_parent = new T();
-			_parent.Init(_tree);
+			_parent.Init(_tree.TextAsset);
 			_parent.Position = _tagList[0].EntryPosition;
 			
 			_link = false;
@@ -184,8 +184,9 @@ namespace LLT
 			{
 				if(!_link)
 				{
+					throw new NotImplementedException();
 					_link = true;
-					_subEnumerator = _tree.Links[current.LinkIndex] as E;
+					//_subEnumerator = _tree.Links[current.LinkIndex] as E;
 					CoreAssert.Fatal(_subEnumerator != null);
 					_subEnumerator.Reset();
 					

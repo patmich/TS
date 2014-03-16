@@ -67,11 +67,6 @@ namespace LLT
 					buffer = new byte[writer.BaseStream.Position];
 					stream.Position = 0;
 					stream.Read(buffer, 0, buffer.Length);
-
-					for(var i = 0; i < positions.Count; i++)
-					{
-						positions[i] = new KeyValuePair<ITSTreeNode, int>(positions[i].Key, positions[i].Value + (int)treePosition);
-					}
 				}
 			}
 		}

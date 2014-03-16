@@ -2,18 +2,33 @@ using System.Collections.Generic;
 
 namespace LLT
 {
-	[TSLayout(typeof(ushort), "NameIndex", 0)]
-	[TSLayout(typeof(ushort), "EntrySizeOf", 1)]
+	[TSLayout(typeof(int), "NameIndex", 0)]
+	[TSLayout(typeof(int), "EntrySizeOf", 1)]
 	[TSLayout(typeof(int), "SubTreeSizeOf", 2)]
-	[TSLayout(typeof(ushort), "LinkIndex", 3)]
-	[TSLayout(typeof(ushort), "ObjectIndex", 4)]
+	[TSLayout(typeof(int), "LinkIndex", 3)]
+	[TSLayout(typeof(int), "ObjectIndex", 4)]
 	[TSLayout(typeof(byte), "TypeIndex", 5)]
-	public sealed partial class TSTreeStreamTag : TSTreeStreamEntry
+	public sealed partial class TSTreeStreamTag
 	{
+		private ITSTreeStream _tree;
+		private int _position;
 		private int _entryPosition;
 		private int _firstChildPosition;
 		private int _siblingPosition;
+		private string _name;
 		
+		public string Name 
+		{
+			get 
+			{
+				return _name;
+			}
+			set 
+			{
+				_name = value;
+			}
+		}
+
 		public int EntryPosition 
 		{
 			get
@@ -37,8 +52,16 @@ namespace LLT
 				return _siblingPosition;
 			}
 		}
-		
-		public override int Position 
+
+		public int FactoryTypeIndex 
+		{
+			get 
+			{
+				throw new System.NotImplementedException ();
+			}
+		}
+
+		public int Position 
 		{
 			get 
 			{
@@ -63,7 +86,7 @@ namespace LLT
 		
 		internal TSTreeStreamTag(ITSTreeStream tree, int position, ITSFactoryInstance current, List<TSTreeStreamTag> childs)
 	    {
-	       	_tree = tree;
+			_tree = tree;
 	        Position = position;
 	 	
 			CoreAssert.Fatal(current.SizeOf < ushort.MaxValue);
@@ -92,6 +115,11 @@ namespace LLT
 		}
 		
 		public TSTreeStreamTag(ITSTreeStream tree)
+		{
+			_tree = tree;
+		}
+
+		public void Init(ITSTreeStream tree)
 		{
 			_tree = tree;
 		}

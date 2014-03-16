@@ -125,11 +125,11 @@ namespace LLT
 						textWriter.WriteLine("\t\t{");
 						textWriter.WriteLine("\t\t\tget");
 						textWriter.WriteLine("\t\t\t{");
-						textWriter.WriteLine(string.Format("\t\t\t\treturn _tree.Read{0}(_position + {1});", memberType.Name, offset));
+						textWriter.WriteLine(string.Format("\t\t\t\treturn _textAsset.Read{0}(_position + {1});", memberType.Name, offset));
 						textWriter.WriteLine("\t\t\t}");
 						textWriter.WriteLine("\t\t\tset");
 						textWriter.WriteLine("\t\t\t{");
-						textWriter.WriteLine(string.Format("\t\t\t\t_tree.Write(_position + {0}, value);", offset));
+						textWriter.WriteLine(string.Format("\t\t\t\t_textAsset.Write(_position + {0}, value);", offset));
 						textWriter.WriteLine("\t\t\t}");
 						textWriter.WriteLine("\t\t}");
 					}
@@ -168,15 +168,15 @@ namespace LLT
 				}
 				
 				textWriter.WriteLine();
-				textWriter.WriteLine("\t\tpublic override void Init(ITSTreeStream tree)");
+				textWriter.WriteLine("\t\tpublic override void Init(ITSTextAsset textAsset)");
 				textWriter.WriteLine("\t\t{");
-				textWriter.WriteLine("\t\t\t_tree = tree;");
+				textWriter.WriteLine("\t\t\t_textAsset = textAsset;");
 				
 				foreach(TSLayoutAttribute layoutAttribute in layoutAttributes)
 				{
 					if(layoutAttribute.Type.IsSubclassOf(typeof(TSTreeStreamEntry)))
 					{
-						textWriter.WriteLine(string.Format("\t\t\t{0}.Init(_tree);", layoutAttribute.Name));
+						textWriter.WriteLine(string.Format("\t\t\t{0}.Init(_textAsset);", layoutAttribute.Name));
 					}
 				}
 				
@@ -210,7 +210,7 @@ namespace LLT
 				textWriter.WriteLine(string.Format("namespace {0}",type.Namespace));
 				textWriter.WriteLine("{");
 				textWriter.WriteLine(string.Format("\t[StructLayout(LayoutKind.Explicit, Size={0})]", SizeOf(type, true)));
-				textWriter.WriteLine(string.Format("\tpublic struct {0}StructLayout", type.Name));
+				textWriter.WriteLine(string.Format("\tpublic partial struct {0}StructLayout", type.Name));
 				textWriter.WriteLine("\t{");
 			
 				var offset = 0;

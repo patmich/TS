@@ -25,6 +25,14 @@ namespace LLT
 			}
 		}
 
+		public ITSTreeStream Tree 
+		{
+			get 
+			{
+				throw new NotImplementedException ();
+			}
+		}
+
         public void Dispose()
         {
             throw new NotImplementedException ();

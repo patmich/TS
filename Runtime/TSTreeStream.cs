@@ -9,24 +9,40 @@ using System.Text;
 namespace LLT
 {
 	[Serializable]
-	public abstract class TSTreeStream<O> : IDisposable, ITSTreeStream, ITreeStreamQuery<O>
+	public abstract class TSTreeStream<O> : IDisposable, ITSTreeStream
 		where O : class, ITSObject, new()
 	{
 		public const int Alignment = 4;
-		
-		
-		public abstract ITSTreeStreamDFSEnumerator Iter { get; }
-			
-		private byte[] _buffer;		
-		private readonly List<string> _lookup = new List<string>();
-		private readonly List<ITSTreeStreamDFSEnumerator> _links = new List<ITSTreeStreamDFSEnumerator>();
-		private readonly ITSTreeStreamDFSEnumerator _dfs;
-		
-		private TSTreeStreamTag _rootTag;
-		private GCHandle _handle;
-		public IntPtr Ptr { get; private set; }
 
-        private List<O> _objects = new List<O>();
+		private ITSTextAsset _textAsset;
+
+		public abstract ITSTreeStreamDFSEnumerator Iter { get; }
+
+		private ITSTreeStream _parent;
+		private TSTreeStreamTag _rootTag;
+
+		private readonly List<string> _lookup = new List<string>();
+		private List<O> _objects;
+
+		public ITSTextAsset TextAsset
+		{
+			get
+			{
+				return _textAsset;
+			}
+		}
+
+		public virtual ITSTreeStream Parent
+		{
+			set
+			{
+				_parent = value;
+			}
+			get
+			{
+				return _parent;
+			}
+		}
 
 		public TSTreeStreamTag RootTag
 		{
@@ -40,28 +56,18 @@ namespace LLT
 				return _rootTag;
 			}
 		}
-		
-		public int Length 
+
+		public int GetInstanceID()
 		{
-			get
-			{
-				return _buffer.Length;
-			}
+			throw new NotImplementedException();
 		}
-		
-		public List<ITSTreeStreamDFSEnumerator> Links
+
+		public TSTreeStream(ITSTextAsset textAsset, ICoreStreamable meta, List<O> objects)
 		{
-			get
-			{
-				return _links;
-			}
-		}
-		
-		public void InitFromBytes(byte[] buffer, ICoreStreamable meta, TSFactory factory)
-		{
-			_buffer = buffer;
-			
-			using(var stream = new MemoryStream(_buffer))
+			_textAsset = textAsset.GetInstance();
+			_objects = objects;
+
+			using(var stream = new MemoryStream(_textAsset.Bytes))
 			{
 				var binaryReader = new BinaryReader(stream);
 				
@@ -99,29 +105,21 @@ namespace LLT
 				{
 					stream.Position += align;
 				}
-				
-				_rootTag = CreateTag((int)stream.Position);
+
+				_textAsset.Offset((int)stream.Position);
+				_rootTag = CreateTag(0);
 			}
-			
-            _handle = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
-            Ptr = _handle.AddrOfPinnedObject();
+
+			for(var i = 0; i < _objects.Count; i++)
+			{
+				_objects[i].Init(this);
+			}
 		}
-		
-		
+
 		public TSTreeStreamTag CreateTag(int position)
 		{
 			return new TSTreeStreamTag(this, position);
 		}
-		
-		public void Link(TSTreeStreamTag tag, ITSTreeStreamDFSEnumerator dfs)
-		{
-			CoreAssert.Fatal(_links.Count < ushort.MaxValue);
-			tag.LinkIndex = (ushort)_links.Count;
-			
-			_links.Add(dfs);
-		}
-		
-		
 		
 		public string GetName(TSTreeStreamTag tag)
 		{
@@ -130,7 +128,7 @@ namespace LLT
 				return string.Empty;
 			}
 			
-			CoreAssert.Fatal(0 <= tag.NameIndex && tag.NameIndex < _lookup.Count);
+			CoreAssert.Fatal(0 <= tag.NameIndex && tag.NameIndex < _lookup.Count, "tag.NameIndex: " + tag.NameIndex + " " + _lookup.Count);
 			return _lookup[tag.NameIndex];
 		}
 		
@@ -163,6 +161,7 @@ namespace LLT
             CoreAssert.Fatal(tag.Tree == this);
 			if(Iter.MoveTo(tag, path))
             {
+				UnityEngine.Debug.Log(Iter.Current.Position + " " + Iter.Current.ObjectIndex);
                 if(Iter.Current.LinkIndex != ushort.MaxValue)
                 {
                     Iter.MoveNext(false);
@@ -292,169 +291,9 @@ namespace LLT
             
             return false;
         }
-		
-		public int ReadInt32(int position)
-		{
-			CoreAssert.Fatal(position + sizeof(int) <= _buffer.Length);
-			
-#if  !ALLOW_UNSAFE
-			return BitConverter.ToInt32(_buffer, position);
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					return *(int*)ptr;
-				}
-			}		
-#endif
-		}
-		
-		public uint ReadUInt32(int position)
-		{
-			CoreAssert.Fatal(position + sizeof(uint) <= _buffer.Length);
-			
-#if  !ALLOW_UNSAFE
-			return BitConverter.ToUInt32(_buffer, position);
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					return *(uint*)ptr;
-				}
-			}		
-#endif
-		}
-		
-		public float ReadSingle(int position)
-		{
-			CoreAssert.Fatal(position + sizeof(float) <= _buffer.Length);
-
-#if  !ALLOW_UNSAFE
-			return BitConverter.ToSingle(_buffer, position);
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					return *(float*)ptr;
-				}
-			}		
-#endif
-	
-		}
-		
-		public byte ReadByte(int position)
-		{
-			CoreAssert.Fatal(position < _buffer.Length);
-			return _buffer[position];
-		}
-		
-		public ushort ReadUInt16(int position)
-		{
-			CoreAssert.Fatal(position + sizeof(ushort) <= _buffer.Length);
-#if  !ALLOW_UNSAFE
-			return BitConverter.ToUInt16(_buffer, position);
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					return *(ushort*)ptr;
-				}
-			}		
-#endif
-		}
-		
-		public void Write(int position, int val)
-		{
-			CoreAssert.Fatal(position + sizeof(int) < _buffer.Length);
-#if  !ALLOW_UNSAFE
-			Buffer.BlockCopy(BitConverter.GetBytes(val), 0, _buffer, position, sizeof(int));
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					*(int*)ptr = val;
-				}
-			}		
-#endif
-		}
-		
-		public void Write(int position, uint val)
-		{
-			CoreAssert.Fatal(position + sizeof(uint) < _buffer.Length);
-#if  !ALLOW_UNSAFE
-			Buffer.BlockCopy(BitConverter.GetBytes(val), 0, _buffer, position, sizeof(uint));
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					*(uint*)ptr = val;
-				}
-			}		
-#endif
-		}
-		
-		public void Write(int position, byte val)
-		{
-			CoreAssert.Fatal(position < _buffer.Length);
-			_buffer[position] = val;
-		}
-		
-		public void Write(int position, float val)
-		{
-			CoreAssert.Fatal(position + sizeof(float) < _buffer.Length);
-#if  !ALLOW_UNSAFE
-			Buffer.BlockCopy(BitConverter.GetBytes(val), 0, _buffer, position, sizeof(float));
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					*(float*)ptr = val;
-				}
-			}		
-#endif
-		}
-		
-		public void Write(int position, ushort val)
-		{
-			CoreAssert.Fatal(position + sizeof(ushort) < _buffer.Length);
-#if  !ALLOW_UNSAFE
-			Buffer.BlockCopy(BitConverter.GetBytes(val), 0, _buffer, position, sizeof(ushort));
-#else
-			unsafe
-			{
-				fixed(byte* ptr = &_buffer[position])
-				{
-					*(ushort*)ptr = val;
-				}
-			}		
-#endif
-		}
-		
-		public void WriteAllBytes(string path)
-		{
-			File.WriteAllBytes(path, _buffer);
-		}
-		
-        public byte[] GetAllBytes() 
-        {
-            return _buffer.ToArray();
-        }
 
 		public void Dispose ()
 		{
-			if(_handle.IsAllocated)
-            {
-                Ptr = IntPtr.Zero;
-                _handle.Free();
-            }
-
             for(var i = 0; i < _objects.Count; i++)
             {
                 _objects[i].Dispose();

@@ -3,11 +3,9 @@ using System.IO;
 
 namespace LLT
 {
-	
-	
 	public class TSTreeStreamEntry : ITSFactoryInstance
 	{
-	    public ITSTreeStream _tree;
+	    public ITSTextAsset _textAsset;
 		protected int _position;
 		private string _name;
 		
@@ -55,19 +53,19 @@ namespace LLT
 		{
 		}
 		
-		public virtual void Init(ITSTreeStream tree)
+		public virtual void Init(ITSTextAsset textAsset)
 		{
-			_tree = tree;
+			_textAsset = textAsset;
 		}
 		
 		public void Affect(TSPropertyType propertyType, int offset, float val)
 		{
 			switch(propertyType)
 			{
-				case TSPropertyType._byte:_tree.Write(_position + offset, (byte)val);break;
-				case TSPropertyType._ushort:_tree.Write(_position + offset, (ushort)val);break;
-				case TSPropertyType._int:_tree.Write(_position + offset, (int)val);break;
-				case TSPropertyType._float:_tree.Write(_position + offset, val);break;
+				case TSPropertyType._byte:_textAsset.Write(_position + offset, (byte)val);break;
+				case TSPropertyType._ushort:_textAsset.Write(_position + offset, (ushort)val);break;
+				case TSPropertyType._int:_textAsset.Write(_position + offset, (int)val);break;
+				case TSPropertyType._float:_textAsset.Write(_position + offset, val);break;
 			}
 		}
 	}
